@@ -1,0 +1,135 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "appVMName": {
+            "type": "String"
+        },
+        "appVMNameAVSetId": {
+            "type": "String"
+        },
+        "appVMNameSize": {
+            "type": "String"
+        },
+        "appVMNameUser": {
+            "type": "String"
+        },
+        "appVMNamePass": {
+            "type": "String"
+        },
+		"moduleName":{
+			"type":"string"
+		},
+		"scriptURL":{
+			"type":"string"
+		},
+		"subnetId":{
+			"type":"string"
+		}
+    },
+    "variables": {
+		"appVMNicName":"[concat(parameters('appVMName'), '-nic')]",
+		"appVMScriptName":"[concat(parameters('appVMName'), '/script')]"
+	},
+    "resources": [
+		{
+			"type": "Microsoft.Network/networkInterfaces",
+			"apiVersion": "2017-04-01",
+			"name": "[variables('appVMNicName')]",
+			"location": "[resourceGroup().location]",
+			"properties": {
+				"ipConfigurations": [
+					{
+						"name": "ipconfig1",
+						"properties": {
+							"privateIPAllocationMethod": "Dynamic",
+							"subnet": {
+								"id": "[parameters('subnetId')]"
+							}
+						}
+					}
+				]
+			}
+		},
+		{
+            "type": "Microsoft.Compute/virtualMachines",
+            "apiVersion": "2019-03-01",
+            "name": "[parameters('appVMName')]",
+            "location": "[resourceGroup().location]",
+			"dependsOn": [
+				"[resourceId('Microsoft.Network/networkInterfaces/', variables('appVMNicName'))]"
+			],
+            "tags": {
+                "module": "[parameters('moduleName')]"
+            },
+            "properties": {
+                "availabilitySet": {
+                    "id": "[parameters('appVMNameAVSetId')]"
+                },
+                "hardwareProfile": {
+                    "vmSize": "[parameters('appVMNameSize')]"
+                },
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "Canonical",
+                        "offer": "UbuntuServer",
+                        "sku": "18.04-LTS",
+                        "version": "latest"
+                    },
+                    "osDisk": {
+                        "osType": "Linux",
+                        "name": "[concat(parameters('appVMName'), '-os-disk')]",
+                        "createOption": "FromImage",
+                        "caching": "ReadWrite",
+                        "managedDisk": {
+                            "storageAccountType": "Premium_LRS"
+                        },
+                        "diskSizeGB": 30
+                    },
+                    "dataDisks": []
+                },
+                "osProfile": {
+                    "computerName": "[parameters('appVMName')]",
+                    "adminUsername": "[parameters('appVMNameUser')]",
+					"adminPassword": "[parameters('appVMNamePass')]",
+                    "linuxConfiguration": {
+                        "disablePasswordAuthentication": false,
+                        "provisionVMAgent": true
+                    },
+                    "secrets": [],
+                    "allowExtensionOperations": true
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces/', variables('appVMNicName'))]"
+                        }
+                    ]
+                }
+            }
+        },
+		{
+			"type": "Microsoft.Compute/virtualMachines/extensions",
+			"name": "[variables('appVMScriptName')]",
+			"apiVersion": "2016-04-30-preview", 
+			"location": "[resourceGroup().location]",
+			"properties": {
+				"publisher": "Microsoft.OSTCExtensions",
+				"type": "CustomScriptForLinux",
+				"typeHandlerVersion": "1.4",
+				"autoUpgradeMinorVersion": true,
+				"settings": {
+					"fileUris": [
+						"[parameters('scriptURL')]"
+					]
+				},
+				"protectedSettings": {
+					"commandToExecute": "[concat('sh ', substring(parameters('scriptURL'), add(lastIndexOf(parameters('scriptURL'), '/'), 1)) )]"
+				}
+			},
+			"dependsOn": [
+				"[resourceId('Microsoft.Compute/virtualMachines', parameters('appVMName'))]"
+			]
+		}
+    ]
+}

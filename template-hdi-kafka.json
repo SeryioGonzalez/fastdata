@@ -1,0 +1,161 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "clusterName": {
+            "type": "String"
+        },
+		"clusterLoginPassword":{
+			"type":"string"
+		},
+		"clusterLoginUserName":{
+			"type":"string"
+		},
+		"headNodeCount": {
+            "type": "int"
+        },	
+		"headNodeSize": {
+            "type": "String"
+        },	
+		"moduleName":{
+			"type":"string"
+		},		
+        "sshPassword": {
+            "type": "String"
+        },
+        "sshUserName": {
+            "type": "String"
+        },
+        "subnetName": {
+            "type": "String"
+        },
+        "vnetId": {
+            "type": "String"
+        },
+        "workerDiskCount": {
+            "type": "int"
+        },
+		"workerNodeCount": {
+            "type": "int"
+        },
+		"workerNodeSize": {
+            "type": "String"
+        },
+		"zookeperNodeCount": {
+            "type": "int"
+        },
+		"zookeperNodeSize": {
+            "type": "String"
+        }
+    },
+    "variables": {
+		"subnetName": "[concat(parameters('vnetId'), '/subnets/', parameters('subnetName'))]",
+		"storageAccount": {
+			"name": "[concat('kafka', uniqueString(resourceGroup().id))]",
+			"type": "Standard_LRS"
+		}
+	},
+    "resources": [
+		{
+			"type": "Microsoft.Storage/storageAccounts",
+			"apiVersion": "2017-10-01",
+			"name": "[variables('storageAccount').name]",
+			"location": "[resourceGroup().location]",
+			"sku": {
+				"name": "[variables('storageAccount').type]"
+			},
+			"kind": "Storage",
+			"properties": {}
+		},
+        {
+            "type": "Microsoft.HDInsight/clusters",
+            "apiVersion": "2015-03-01-preview",
+            "name": "[parameters('clusterName')]",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "clusterVersion": "3.6",
+                "osType": "Linux",
+                "clusterDefinition": {
+					"kind": "kafka",
+					"configurations": {
+						"gateway": {
+							"restAuthCredential.isEnabled": true,
+							"restAuthCredential.username": "[parameters('clusterLoginUserName')]",
+							"restAuthCredential.password": "[parameters('clusterLoginPassword')]"
+						}
+					}
+                },
+				"storageProfile": {
+				  "storageaccounts": [
+					{
+					  "name": "[variables('storageAccount').name]",
+					  "isDefault": true,
+					  "container": "[parameters('clusterName')]",
+					  "key": "[listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccount').name), '2017-10-01').keys[0].value]"
+					}
+				  ]
+				},
+                "computeProfile": {
+                    "roles": [
+                        {
+                            "name": "headnode",
+                            "targetInstanceCount": "[parameters('headNodeCount')]",
+                            "hardwareProfile": {
+                                  "vmSize": "[parameters('headNodeSize')]"
+                            },
+                            "osProfile": {
+                                "linuxOperatingSystemProfile": {
+                                    "username": "[parameters('sshUserName')]",
+									"password": "[parameters('sshPassword')]"
+                                }
+                            },
+                            "virtualNetworkProfile": {
+                                "id": "[parameters('vnetId')]",
+                                "subnet": "[parameters('subnetName')]"
+                            }
+                        },
+                        {
+                            "name": "workernode",
+                            "targetInstanceCount": "[parameters('workerNodeCount')]",
+                            "hardwareProfile": {
+                                "vmSize": "[parameters('workerNodeSize')]"
+                            },
+                            "osProfile": {
+                                "linuxOperatingSystemProfile": {
+                                    "username": "[parameters('sshUserName')]",
+									"password": "[parameters('sshPassword')]"
+                                }
+                            },
+                            "virtualNetworkProfile": {
+                                "id": "[parameters('vnetId')]",
+                                "subnet": "[parameters('subnetName')]"
+                            },
+                            "dataDisksGroups": [
+                                {
+                                    "disksPerNode": "[parameters('workerDiskCount')]"
+                                }
+                            ]
+                        },
+                        {
+                            "name": "zookeepernode",
+                            "targetInstanceCount": "[parameters('zookeperNodeCount')]",
+                            "hardwareProfile": {
+                                "vmSize": "[parameters('zookeperNodeSize')]"
+                            },
+                            "osProfile": {
+                                "linuxOperatingSystemProfile": {
+                                    "username": "[parameters('sshUserName')]",
+									"password": "[parameters('sshPassword')]"
+                                }
+                            },
+                            "virtualNetworkProfile": {
+                                "id": "[parameters('vnetId')]",
+                                "subnet": "[parameters('subnetName')]"
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

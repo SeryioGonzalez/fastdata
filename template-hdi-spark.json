@@ -1,0 +1,108 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "clusterName": {
+            "type": "String"
+        },
+        "sshPassword": {
+            "type": "String"
+        },
+        "sshUserName": {
+            "type": "String"
+        },
+        "subnetName": {
+            "type": "String"
+        },
+        "vnetId": {
+            "type": "String"
+        }
+    },
+    "variables": {
+		"subnetName": "[concat(parameters('vnetId'), '/subnets/', parameters('subnetName'))]",
+		"storageAccount": {
+			"name": "[concat('kafka', uniqueString(resourceGroup().id))]",
+			"type": "Standard_LRS"
+		}
+	},
+    "resources": [
+        {
+            "type": "Microsoft.HDInsight/clusters",
+            "apiVersion": "2018-06-01-preview",
+            "name": "[parameters('clusterName')]",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "clusterVersion": "3.6",
+                "osType": "Linux",
+                "clusterDefinition": {
+                    "kind": "spark"
+                },
+				"storageProfile": {
+				  "storageaccounts": [
+					{
+					  "name": "[variables('storageAccount').name]",
+					  "isDefault": true,
+					  "container": "[parameters('clusterName')]",
+					  "key": "[listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccount').name), '2017-10-01').keys[0].value]"
+					}
+				  ]
+				},
+                "computeProfile": {
+                    "roles": [
+                        {
+                            "name": "headnode",
+                            "targetInstanceCount": 2,
+                            "hardwareProfile": {
+                                "vmSize": "Standard_D3_V2"
+                            },
+                            "osProfile": {
+                                "linuxOperatingSystemProfile": {
+                                    "username": "[parameters('sshUserName')]",
+									"password": "[parameters('sshPassword')]"
+                                }
+                            },
+                            "virtualNetworkProfile": {
+                                "id": "[parameters('vnetId')]",
+                                "subnet": "[concat(parameters('vnetId'), variables('subnetName'))]"
+                            }
+                        },
+                        {
+                            "name": "workernode",
+                            "targetInstanceCount": 3,
+                            "hardwareProfile": {
+                                "vmSize": "Standard_D12_V2"
+                            },
+                            "osProfile": {
+                                "linuxOperatingSystemProfile": {
+                                    "username": "[parameters('sshUserName')]",
+									"password": "[parameters('sshPassword')]"
+                                }
+                            },
+                            "virtualNetworkProfile": {
+                                "id": "[parameters('vnetId')]",
+                                "subnet": "[concat(parameters('vnetId'), variables('subnetName'))]"
+                            }
+                        },
+                        {
+                            "name": "zookeepernode",
+                            "targetInstanceCount": 3,
+                            "hardwareProfile": {
+                                "vmSize": "Medium"
+                            },
+                            "osProfile": {
+                                "linuxOperatingSystemProfile": {
+                                    "username": "[parameters('sshUserName')]",
+									"password": "[parameters('sshPassword')]"
+                                }
+                            },
+                            "virtualNetworkProfile": {
+                                "id": "[parameters('vnetId')]",
+                                "subnet": "[concat(parameters('vnetId'), variables('subnetName'))]"
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}
