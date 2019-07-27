@@ -14,7 +14,7 @@ az group deployment create --debug --resource-group $resGroupName --name $kafkaD
 	clusterName=$kafkaClusterName \
 	clusterLoginPassword=$kafkaHTTPPassword \
 	clusterLoginUserName=$kafkaHTTPUser \
-	sshUserName=$kafkaSSHUser \
+	clusterSshUserName=$kafkaSSHUser \
 	sshPassword=$kafkaSSHPassword \
 	subnetName=$subnetNameHDI \
 	vnetId=$AZURE_HDI_VNET_ID \
