@@ -12,7 +12,7 @@ AZURE_BLOB_URL="https://$storageAccountScripts.blob.core.windows.net/$blobContai
 
 #Log Analytics
 echo "Creating av-set for app VMs"
-#az vm availability-set create -g $resGroupName -n $appVMsAvSetName --tags module=$module
+az vm availability-set create -g $resGroupName -n $appVMsAvSetName --tags module=$module
 
 echo "Creating $appVMsNumVMs app VMs"
 lastVMIndex=$(expr $appVMsNumVMs - 1)

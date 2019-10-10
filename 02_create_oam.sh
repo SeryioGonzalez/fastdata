@@ -11,10 +11,10 @@ echo "Creating log analytics workspace"
 az group deployment create --resource-group $resGroupName --name $logAnalyticsDeployment --template-file $templateLogAnalytics --parameters moduleName=$module workspaceName=$logAnalyticsWorkspaceName --no-wait
 
 echo "Creating recovery vault"
-az backup vault create -l $region --name $recoveryVaultName --resource-group $resGroupName 
+az backup vault create -l $region --name $recoveryVaultName --resource-group $resGroupName --tags module=oam
 
 echo "Creating storage account for scripts"
-az storage account create --name $storageAccountScripts --resource-group $resGroupName --https-only true --kind StorageV2 --sku Standard_GRS
+az storage account create --name $storageAccountScripts --resource-group $resGroupName --https-only true --kind StorageV2 --sku Standard_GRS --tags module=oam
 export AZURE_STORAGE_KEY=$(az storage account keys list \
     --account-name $storageAccountScripts --resource-group $resGroupName --query [0].value -o tsv)
 az storage container create --name $blobContainerScripts --account-key $AZURE_STORAGE_KEY --account-name $storageAccountScripts

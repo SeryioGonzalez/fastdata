@@ -1,108 +1,152 @@
 {
-    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
-    "contentVersion": "1.0.0.0",
-    "parameters": {
-        "clusterName": {
-            "type": "String"
-        },
-        "sshPassword": {
-            "type": "String"
-        },
-        "sshUserName": {
-            "type": "String"
-        },
-        "subnetName": {
-            "type": "String"
-        },
-        "vnetId": {
-            "type": "String"
-        }
-    },
-    "variables": {
-		"subnetName": "[concat(parameters('vnetId'), '/subnets/', parameters('subnetName'))]",
-		"storageAccount": {
-			"name": "[concat('kafka', uniqueString(resourceGroup().id))]",
-			"type": "Standard_LRS"
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"baseClusterName": {
+			"type": "string",
+			"metadata": {
+				"description": "Spark cluster name"
+			}
+		},
+		"clusterLoginPassword": {
+			"type": "securestring",
+			"metadata": {
+				"description": "The password must be at least 10 characters in length and must contain at least one digit, one non-alphanumeric character, and one upper or lower case letter."
+			}
+		},
+		"clusterLoginUserName": {
+			"type": "string",
+			"defaultValue": "admin",
+			"metadata": {
+				"description": "These credentials can be used to submit jobs to the cluster and to log into cluster dashboards."
+			}
+		},
+		"clusterVersion": {
+			"type": "string",
+			"defaultValue": "3.6"
+		},
+		"clusterWorkerNodeCount": {
+			"type": "int",
+			"defaultValue": 3
+		},
+		"clusterWorkerNodeSize": {
+			"type": "string"
+		},
+		"sshPassword": {
+			"type": "securestring",
+			"metadata": {
+				"description": "The password must be at least 10 characters in length and must contain at least one digit, one non-alphanumeric character, and one upper or lower case letter."
+			}
+		},
+		"sshUserName": {
+			"type": "string",
+			"defaultValue": "sshuser"
+		},
+		"subnetId": {
+			"type": "string"
+		},
+		"vnetId": {
+			"type": "string"
 		}
 	},
-    "resources": [
-        {
-            "type": "Microsoft.HDInsight/clusters",
-            "apiVersion": "2018-06-01-preview",
-            "name": "[parameters('clusterName')]",
-            "location": "[resourceGroup().location]",
-            "properties": {
-                "clusterVersion": "3.6",
-                "osType": "Linux",
-                "clusterDefinition": {
-                    "kind": "spark"
-                },
-				"storageProfile": {
-				  "storageaccounts": [
-					{
-					  "name": "[variables('storageAccount').name]",
-					  "isDefault": true,
-					  "container": "[parameters('clusterName')]",
-					  "key": "[listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccount').name), '2017-10-01').keys[0].value]"
+	"variables": {
+		"clusterStorageAccountName": "[concat('spark', uniqueString( resourceGroup().id, deployment().name ))]",
+		"sparkClusterName": "[concat('spark-', parameters('baseClusterName'))]"
+	},
+	"resources": [
+		{
+			"name": "[variables('clusterStorageAccountName')]",
+			"type": "Microsoft.Storage/storageAccounts",
+			"location": "[resourceGroup().location]",
+			"apiVersion": "2015-05-01-preview",
+			"properties": {
+				"accountType": "Standard_LRS"
+			}
+		},
+		{
+			"type": "Microsoft.HDInsight/clusters",
+			"name": "[variables('sparkClusterName')]",
+			"location": "[resourceGroup().location]",
+			"apiVersion": "2015-03-01-preview",
+			"dependsOn": [
+				"[concat('Microsoft.Storage/storageAccounts/',variables('clusterStorageAccountName'))]"
+			],
+			"tags": {},
+			"properties": {
+				"clusterVersion": "[parameters('clusterVersion')]",
+				"osType": "Linux",
+				"tier": "Standard",
+				"clusterDefinition": {
+					"kind": "spark",
+					"configurations": {
+						"gateway": {
+							"restAuthCredential.isEnabled": true,
+							"restAuthCredential.username": "[parameters('clusterLoginUserName')]",
+							"restAuthCredential.password": "[parameters('clusterLoginPassword')]"
+						}
 					}
-				  ]
 				},
-                "computeProfile": {
-                    "roles": [
-                        {
-                            "name": "headnode",
-                            "targetInstanceCount": 2,
-                            "hardwareProfile": {
-                                "vmSize": "Standard_D3_V2"
-                            },
-                            "osProfile": {
-                                "linuxOperatingSystemProfile": {
-                                    "username": "[parameters('sshUserName')]",
+				"storageProfile": {
+					"storageaccounts": [
+						{
+							"name": "[replace(replace(reference(resourceId('Microsoft.Storage/storageAccounts', variables('clusterStorageAccountName')), '2016-01-01').primaryEndpoints.blob,'https://',''),'/','')]",
+							"isDefault": true,
+							"container": "[variables('sparkClusterName')]",
+							"key": "[listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('clusterStorageAccountName')), '2016-01-01').keys[0].value]"
+						}
+					]
+				},
+				"computeProfile": {
+					"roles": [
+						{
+							"name": "headnode",
+							"targetInstanceCount": 2,
+							"hardwareProfile": {
+								"vmSize": "Standard_D12_v2"
+							},
+							"osProfile": {
+								"linuxOperatingSystemProfile": {
+									"username": "[parameters('sshUserName')]",
 									"password": "[parameters('sshPassword')]"
-                                }
-                            },
-                            "virtualNetworkProfile": {
-                                "id": "[parameters('vnetId')]",
-                                "subnet": "[concat(parameters('vnetId'), variables('subnetName'))]"
-                            }
-                        },
-                        {
-                            "name": "workernode",
-                            "targetInstanceCount": 3,
-                            "hardwareProfile": {
-                                "vmSize": "Standard_D12_V2"
-                            },
-                            "osProfile": {
-                                "linuxOperatingSystemProfile": {
-                                    "username": "[parameters('sshUserName')]",
+								}
+							},
+							"virtualNetworkProfile": {
+								"id": "[parameters('vnetId')]",
+								"subnet": "[parameters('subnetId')]"
+							},
+							"scriptActions": []
+						},
+						{
+							"name": "workernode",
+							"targetInstanceCount": "[parameters('clusterWorkerNodeCount')]",
+							"hardwareProfile": {
+								"vmSize": "[parameters('clusterWorkerNodeSize')]"
+							},
+							"osProfile": {
+								"linuxOperatingSystemProfile": {
+									"username": "[parameters('sshUserName')]",
 									"password": "[parameters('sshPassword')]"
-                                }
-                            },
-                            "virtualNetworkProfile": {
-                                "id": "[parameters('vnetId')]",
-                                "subnet": "[concat(parameters('vnetId'), variables('subnetName'))]"
-                            }
-                        },
-                        {
-                            "name": "zookeepernode",
-                            "targetInstanceCount": 3,
-                            "hardwareProfile": {
-                                "vmSize": "Medium"
-                            },
-                            "osProfile": {
-                                "linuxOperatingSystemProfile": {
-                                    "username": "[parameters('sshUserName')]",
-									"password": "[parameters('sshPassword')]"
-                                }
-                            },
-                            "virtualNetworkProfile": {
-                                "id": "[parameters('vnetId')]",
-                                "subnet": "[concat(parameters('vnetId'), variables('subnetName'))]"
-                            }
-                        }
-                    ]
-                }
-            }
-        }
-    ]
+								}
+							},
+							"virtualNetworkProfile": {
+								"id": "[parameters('vnetId')]",
+								"subnet": "[parameters('subnetId')]"
+							},
+							"scriptActions": []
+						}
+					]
+				}
+			}
+		}
+	],
+	"outputs": {
+		"storage": {
+			"type": "object",
+			"value": "[reference(resourceId('Microsoft.Storage/storageAccounts', variables('clusterStorageAccountName')))]"
+		},
+		"cluster": {
+			"type": "object",
+			"value": "[reference(resourceId('Microsoft.HDInsight/clusters',variables('sparkClusterName')))]"
+		}
+	}
 }

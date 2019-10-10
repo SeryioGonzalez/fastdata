@@ -2,19 +2,16 @@
     "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
     "contentVersion": "1.0.0.0",
     "parameters": {
-        "appVMName": {
+        "elasticVMName": {
             "type": "String"
         },
-        "appVMNameAVSetId": {
+        "elasticVMSize": {
             "type": "String"
         },
-        "appVMNameSize": {
+        "elasticVMUser": {
             "type": "String"
         },
-        "appVMNameUser": {
-            "type": "String"
-        },
-        "appVMNamePass": {
+        "elasticVMPass": {
             "type": "String"
         },
 		"moduleName":{
@@ -28,8 +25,8 @@
 		}
     },
     "variables": {
-		"appVMNicName":"[concat(parameters('appVMName'), '-nic')]",
-		"appVMScriptName":"[concat(parameters('appVMName'), '/script')]"
+		"appVMNicName":"[concat(parameters('elasticVMName'), '-nic')]",
+		"appVMScriptName":"[concat(parameters('elasticVMName'), '/script')]"
 	},
     "resources": [
 		{
@@ -37,9 +34,6 @@
 			"apiVersion": "2017-04-01",
 			"name": "[variables('appVMNicName')]",
 			"location": "[resourceGroup().location]",
-            "tags": {
-                "module": "[parameters('moduleName')]"
-            },
 			"properties": {
 				"ipConfigurations": [
 					{
@@ -57,7 +51,7 @@
 		{
             "type": "Microsoft.Compute/virtualMachines",
             "apiVersion": "2019-03-01",
-            "name": "[parameters('appVMName')]",
+            "name": "[parameters('elasticVMName')]",
             "location": "[resourceGroup().location]",
 			"dependsOn": [
 				"[resourceId('Microsoft.Network/networkInterfaces/', variables('appVMNicName'))]"
@@ -66,11 +60,8 @@
                 "module": "[parameters('moduleName')]"
             },
             "properties": {
-                "availabilitySet": {
-                    "id": "[parameters('appVMNameAVSetId')]"
-                },
                 "hardwareProfile": {
-                    "vmSize": "[parameters('appVMNameSize')]"
+                    "vmSize": "[parameters('elasticVMSize')]"
                 },
                 "storageProfile": {
                     "imageReference": {
@@ -81,7 +72,7 @@
                     },
                     "osDisk": {
                         "osType": "Linux",
-                        "name": "[concat(parameters('appVMName'), '-os-disk')]",
+                        "name": "[concat(parameters('elasticVMName'), '-os-disk')]",
                         "createOption": "FromImage",
                         "caching": "ReadWrite",
                         "managedDisk": {
@@ -92,9 +83,9 @@
                     "dataDisks": []
                 },
                 "osProfile": {
-                    "computerName": "[parameters('appVMName')]",
-                    "adminUsername": "[parameters('appVMNameUser')]",
-					"adminPassword": "[parameters('appVMNamePass')]",
+                    "computerName": "[parameters('elasticVMName')]",
+                    "adminUsername": "[parameters('elasticVMUser')]",
+					"adminPassword": "[parameters('elasticVMPass')]",
                     "linuxConfiguration": {
                         "disablePasswordAuthentication": false,
                         "provisionVMAgent": true
@@ -131,7 +122,7 @@
 				}
 			},
 			"dependsOn": [
-				"[resourceId('Microsoft.Compute/virtualMachines', parameters('appVMName'))]"
+				"[resourceId('Microsoft.Compute/virtualMachines', parameters('elasticVMName'))]"
 			]
 		}
     ]

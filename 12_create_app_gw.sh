@@ -7,19 +7,20 @@ resGroupName=$resGroupNetworking
 module="appgw"
 
 #Getting subnetId para APP GW
-export AZURE_APP_SUBNET_ID=$(az network vnet subnet show -g $resGroupNetworking --vnet $coreVnet --name $subnetNameWAF --query id -o tsv)
+export AZURE_WAF_SUBNET_ID=$(az network vnet subnet show -g $resGroupNetworking --vnet $coreVnet --name $subnetNameWAF --query id -o tsv)
 
 #Create APP GW
 echo "Creating app gw pub ip"
-az network public-ip create -g $resGroupName --name $appGwPubIPAddressName --sku Standard
+az network public-ip create -g $resGroupName --name $appGwPubIPAddressName --sku Standard --tags module=appvms
 publicIPId=$(az network public-ip show -g $resGroupName --name $appGwPubIPAddressName --query "id" -o tsv)
 
 #List APP VM IPs
 listOfIPs=$(az network nic list -g $resGroupApps --query "[].ipConfigurations[].privateIpAddress" -o tsv | tr '\n' ' ')
 
+
 echo "Creating app gw"
-az network application-gateway create -g $resGroupName --name $appGwName --subnet $AZURE_APP_SUBNET_ID \
-	--public-ip-address $publicIPId --sku $appGwSku --servers $listOfIPs 
+az network application-gateway create -g $resGroupName --name $appGwName --subnet $AZURE_WAF_SUBNET_ID \
+	--public-ip-address $publicIPId --sku $appGwSku --servers $listOfIPs --tags module=appvms
 
 echo "Creating app gw ssl cert"
 az network application-gateway ssl-cert create -g $resGroupName --gateway-name $appGwName --name $appGwCertName --cert-file crypt/certificate.pfx --cert-password "sergio" 
@@ -55,4 +56,7 @@ echo "Create rule with url-path-map"
 az network application-gateway rule create -g $resGroupName --gateway-name $appGwName -n $appGwRuleName --rule-type PathBasedRouting --http-listener $appGwHTTPSListenerName --http-settings appGatewayBackendHttpSettings --url-path-map $appGwRuleName
 
 echo "Delete default settings - rule 1"
-az network application-gateway rule delete -g $resGroupName --gateway-name $appGwName -n rule1
+az network application-gateway rule delete          -g $resGroupName --gateway-name $appGwName -n rule1
+
+echo "Delete default settings - listener"
+az network application-gateway http-listener delete -g $resGroupName --gateway-name $appGwName -n appGatewayHttpListener

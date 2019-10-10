@@ -1,0 +1,13 @@
+git add 10_create_app_vms.sh
+git add 11_enable_oam_app_vms.sh
+git add 12_create_app_gw.sh
+git add 20_create_elastic_nodes.sh
+git add 21_create_elastic_masters.sh
+git add 22_create_elastic_kibana.sh
+git add 23_create_elastic_lb.sh
+git add 30_create_hdi_spark.sh
+git add 31_create_hdi_kafka.sh
+git add 40_create_dashboards_alerts.sh
+git add deployer.sh
+git add template-elastic-kibana-vm.json
+git add template-elastic-vm.json
